@@ -1,0 +1,320 @@
+#!/bin/bash
+# ---------------------------------------------------------------------------
+# taxcalc - Calculates weekly income tax in Australia for the given values.
+
+# Copyright 2021, Peter, <frogsinspace@gmail.com>
+# All rights reserved.
+
+# Usage: taxcalc [-h|--help] [-c|--csv] [-a|--anual grossincome]
+
+# Revision history:
+# 2021-04-24 Created by new_script ver. 3.3
+# 2021-04-29 First revision includes .csv generation.
+# ---------------------------------------------------------------------------
+
+PROGNAME=${0##*/}
+VERSION="0.2"
+TOTAL=0
+NUMBERS=$@
+CSV_FILE=$HOME/Desktop/Tax_Information.csv
+
+#check for bc
+if ! command bc -v &> /dev/null
+then
+	echo
+    echo "This programme requires bc but it could"
+	echo "not be found. If you are using a debian"
+	echo "based system install it with the command."
+    echo "'sudo apt install bc'"
+	echo
+    exit
+fi
+
+clean_up() { # Perform pre-exit housekeeping
+  return
+}
+
+error_exit() {
+  echo -e "${PROGNAME}: ${1:-"Unknown Error"}" >&2
+  clean_up
+  exit 1
+}
+
+graceful_exit() {
+  clean_up
+  exit
+}
+
+signal_exit() { # Handle trapped signals
+  case $1 in
+    INT)
+      error_exit "Program interrupted by user" ;;
+    TERM)
+      echo -e "\n$PROGNAME: Program terminated" >&2
+      graceful_exit ;;
+    *)
+      error_exit "$PROGNAME: Terminating on unknown signal" ;;
+  esac
+}
+
+usage() {
+  echo -e "Usage:\t$PROGNAME\t[-h|--help] [-c|--csv] [-a|--anual grossincome]"
+  echo -e "\t\t[-m|--medicare] <arguments>"        
+}
+
+help_message() {
+  cat <<- _EOF_
+  $PROGNAME ver. $VERSION
+  Calculates weekly income tax in Australia for the given values.
+
+  Usage:      taxcalc [-h|--help] [-c|--csv] [-a|--anual grossincome]
+                      [-m|--medicare] <arguments>
+         
+  Options:
+  -h, --help                Display this help message and exit.
+  -a, --anual grossincome   Displays Tax information for the given
+                            yearly gross income.
+  -c, --csv                 Prefixed to a default command this will
+                            generate a .csv file on the users Desktop. 
+  -m, --medicare            Factors in a 2% medicare levy for the
+                            combined weekly income.
+
+  Note:
+      Arguments are whole or decimal numbers. With no options this
+      script will calculate and display tax information for aggregated
+      arguments the sum of which represent gross income for a given week.
+
+_EOF_
+  return
+}
+
+# Functions for Tax Brackets
+print_aggregated(){
+		if [ ${#LENGTH_TEST} -lt 7 ]
+			then
+				printf "%s%'.2f%s\t\t\t%s%'.2f" "Tax on \$" "$i" ":" "\$" "$AGG_RATE" 
+				if [ ${#LENGTH_AGG} -lt 7 ]
+					then
+						printf "\t\t%s\t%s%'.2f\n" "You receive" "\$" "$AGG_NETINC"
+				elif [ ${#LENGTH_AGG} -lt 12 ]
+					then
+						printf "\t%s\t%s%'.2f\n" "You receive" "\$" "$AGG_NETINC"
+				fi
+		elif [ ${#LENGTH_TEST} -lt 12 ]
+			then
+				printf "%s%'.2f%s\t\t%s%'.2f" "Tax on \$" "$i" ":" "\$" "$AGG_RATE"
+				if [ ${#LENGTH_AGG} -lt 7 ]
+					then
+	   					printf "\t\t%s\t%s%'.2f\n" "You receive" "\$" "$AGG_NETINC"
+				elif [ ${#LENGTH_AGG} -lt 12 ]
+					then
+						printf "\t%s\t%s%'.2f\n" "You receive" "\$" "$AGG_NETINC"
+				fi
+		fi
+}
+
+print_taxinfo(){
+		RATE=$(echo "scale=7; ($TAX / 52) / $TOTAL" | bc -l)
+		MEDICARE_LEVY=$(echo "scale=2; $TOTAL * 0.02" | bc -l)
+		TOTAL_NETINC=$(echo "scale=2; $TOTAL - ($TAX / 52)" | bc)
+		YEARLY_NETINC=$(echo "scale=2; $TAXABLE_INCOME - $TAX" | bc)
+		WEEKLY_INCTAX=$(echo "scale=2; $TAX / 52" | bc -l)
+		if [ $MEDICARE ]
+		then
+				TOTAL_NETINC=$(echo "scale=2; $TOTAL_NETINC - $MEDICARE_LEVY" | bc -l)
+				WEEKLY_INCTAX=$(echo "scale=2; $WEEKLY_INCTAX + $MEDICARE_LEVY" | bc -l)
+				YEARLY_NETINC=$(echo "scale=2; $YEARLY_NETINC - ($MEDICARE_LEVY * 52)" | bc -l)
+				TAX=$(echo "scale=2; $TAX + ($MEDICARE_LEVY * 52)" | bc -l)
+		fi
+		if [ ! $CSV_ISTRUE ]
+		then
+			echo
+			printf "%s\t\t%s%'.2f\n" "Weekly Gross Income:" "\$" "$TOTAL" 
+			printf "%s\t\t%s%'.2f\n" "Weekly Net Income:" "\$" "$TOTAL_NETINC" 
+			printf "%s\t\t%s%'.2f\n" "Weekly Income Tax:" "\$" "$WEEKLY_INCTAX" 
+			echo
+			printf "%s\t\t%s%'.2f\n" "Yearly Gross Income:" "\$" "$TAXABLE_INCOME"
+			printf "%s\t\t%s%'.2f\n" "Yearly Net Income:" "\$" "$YEARLY_NETINC"
+			printf "%s\t\t%s%'.2f\n" "Yearly Income Tax:" "\$" "$TAX"
+			echo
+			LENGTH_TAX=`printf "%'.2f\n" "$WEEKLY_INCTAX"`
+			if [ $MEDICARE ]
+				then
+					printf "%s%'.2f\n" "Calculations include a medicare levy of \$" "$MEDICARE_LEVY"
+					echo
+			fi
+		else
+			echo " , , " >>$CSV_FILE
+			echo "Weekly Gross Income,,$TOTAL" >>$CSV_FILE
+            echo "Weekly Net Income,,$TOTAL_NETINC" >>$CSV_FILE
+			echo "Weekly Income Tax,,$WEEKLY_INCTAX" >>$CSV_FILE
+			echo " , , " >>$CSV_FILE
+			echo "Yearly Gross Income,,$TAXABLE_INCOME" >>$CSV_FILE
+			echo "Yearly Net Income,,$YEARLY_NETINC" >>$CSV_FILE
+			echo "Yearly Income Tax,,$TAX" >>$CSV_FILE
+			echo " , , " >>$CSV_FILE
+			if [ $MEDICARE ]
+				then
+					printf "%s%'.2f%s\n" "Calculations include a medicare levy of, ," "$MEDICARE_LEVY" "," >>$CSV_FILE
+					echo " , , " >>$CSV_FILE
+			fi
+		fi
+		if [ ! $ANUAL_ISTRUE ] && [ $((`echo $NUMBERS | wc -w`)) -gt 1 ]
+			then
+			if [ $CSV_ISTRUE ]
+			then 
+					echo "Aggregated Weekly Income," >>$CSV_FILE
+			else	
+        			echo "Aggregated weekly Income."
+					echo "========================================================================="
+			fi
+			for i in $NUMBERS
+			do
+				AGG_RATE=$(echo "scale=2; $i * $RATE" | bc)
+				LENGTH_TEST=`printf "%'.2f\n" $(echo "scale=2; $i" | bc -l)`
+				LENGTH_AGG=`printf "%'.2f\n" $(echo "scale=2; $AGG_RATE" | bc -l)`
+				AGG_NETINC=$(echo "scale=2; $i - $AGG_RATE" | bc)
+				if [ ! $CSV_ISTRUE ]
+				then
+					print_aggregated
+				else
+					echo "Tax on:,$i,Tax on  >>,$AGG_RATE,You receive:,$AGG_NETINC" >>$CSV_FILE
+				fi
+			done
+			graceful_exit
+		fi
+}
+
+eighteen_two() {
+		TAX=$(echo "scale=2; (($TAXABLE_INCOME) - 18200) * 0.19" | bc)
+		if [ ! $CSV_ISTRUE ]
+		then
+				echo
+				echo "ATO Tax Bracket for \$18,201 - \$45,000."
+				echo "------------------------------------------"
+				echo "19c for each \$1 over \$18,200"
+				echo "=========================================="
+		else
+				echo "\"ATO Tax Bracket for \$18,201 - \$45,000.\"," >$CSV_FILE
+				echo "\"(19c for each \$1 over \$18,200)\"," >>$CSV_FILE
+		fi
+				print_taxinfo
+}
+
+forty_five() {
+		TAX=$(echo "scale=2; ((($TAXABLE_INCOME) - 45000) * 0.325) + 5092" | bc)
+		if [ ! $CSV_ISTRUE ]
+		then
+				echo
+				echo "ATO Tax Bracket for \$45,001 - \$120,000."
+				echo "------------------------------------------"
+				echo "\$5,092 plus 32.5c for each \$1 over \$45,000"
+				echo "=========================================="
+		else
+				echo "\"ATO Tax Bracket for \$45,001 - \$120,000.\"," >$CSV_FILE
+				echo "\"(\$5,092 plus 32.5c for each \$1 over \$45,000)\"," >>$CSV_FILE
+		fi
+		        print_taxinfo
+}
+
+one_twenty() {
+		TAX=$(echo "scale=2; ((($TAXABLE_INCOME) - 120000) * 0.37) + 29467" | bc)
+		if [ ! $CSV_ISTRUE ]
+		then
+				echo
+				echo "ATO Tax Bracket for \$120,001 - \$180,000."
+				echo "------------------------------------------"
+				echo "\$29,467 plus 37c for each \$1 over \$120,000"
+				echo "=========================================="
+		else
+				echo "\"ATO Tax Bracket for \$120,001 - \$180,000.\"," >$CSV_FILE
+				echo "\"(\$29,467 plus 37c for each \$1 over \$120,000)\"," >>$CSV_FILE
+	    fi	
+	  		    print_taxinfo
+}
+
+one_eighty() {
+		TAX=$(echo "scale=2; ((($TAXABLE_INCOME) - 180000) * 0.45) + 51667" | bc)
+		if [ ! $CSV_ISTRUE ]
+		then
+				echo
+				echo "ATO Tax Bracket for \$180,001 and above."
+				echo "------------------------------------------"
+				echo "\$51,667 plus 45c for each \$1 over \$180,000" 
+				echo "=========================================="
+		else
+				echo "\"ATO Tax Bracket for \$180,001 and above.\"," >$CSV_FILE
+				echo "\"(\$51,667 plus 45c for each \$1 over \$180,000)\"," >>$CSV_FILE
+		fi
+				print_taxinfo
+}
+
+heavy_lifting(){
+		TEST=`printf "%.2f\n" $(echo "$TOTAL * 52" | bc -l)`
+
+		if [ $(echo "$TEST < 18200"|bc -l) -eq 1 ]		
+		then
+				echo	
+				echo "ATO Tax Bracket for 0 - \$18,200"
+				echo "NIL"
+				echo "=========================================="
+				echo "No tax is payable on  \$$TEST"
+				echo
+		elif [ $(echo "$TEST > 18200"|bc -l) -eq 1 ]
+		then
+        		if [ $(echo "$TEST > 45000"|bc -l) -eq 1 ]
+				then
+						if [ $(echo "$TEST > 120000"|bc -l) -eq 1 ]
+						then
+								if [ $(echo "$TEST > 180000"|bc -l) -eq 1 ]
+								then
+										one_eighty
+										graceful_exit
+								fi	
+								one_twenty
+								graceful_exit
+						fi
+						forty_five
+						graceful_exit
+				fi
+				eighteen_two
+		fi
+}
+
+# Trap signals
+trap "signal_exit TERM" TERM HUP
+trap "signal_exit INT"  INT
+
+# Parse command-line
+while [[ -n $1 ]]; do
+  case $1 in
+    -h | --help)
+      	help_message; graceful_exit ;;
+	-m | --medicare)
+		MEDICARE=true
+		NUMBERS=$(echo $NUMBERS | sed "s/^[^ ]* //") ;;
+	-c | --csv)
+		CSV_ISTRUE=true
+	    NUMBERS=$(echo $NUMBERS | sed "s/^[^ ]* //") ;; 
+	-a | --anual)
+		TAXABLE_INCOME="$2"
+		NUMBERS=`printf "%0.2f\n" $(echo "$TAXABLE_INCOME / 52" | bc -l)`
+		TOTAL=$NUMBERS
+		ANUAL_ISTRUE=true
+		heavy_lifting
+		graceful_exit ;;
+    -* | --*)
+      usage
+      error_exit "Unknown option $1" ;;
+    *)
+       TOTAL=$(echo "$1 + $TOTAL" | bc);;
+  esac
+  shift
+done
+
+# Main logic
+TAXABLE_INCOME=`printf "%0.2f\n" $(echo "scale=2; $TOTAL * 52" | bc -l)`
+heavy_lifting
+graceful_exit
+
+
