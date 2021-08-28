@@ -19,7 +19,7 @@ NUMBERS=$@
 CSV_FILE=$HOME/Desktop/Tax_Information.csv
 
 #check for bc
-if ! command bc -v &> /dev/null
+if ! command bc -v >/dev/null 2>&1 
 then
 	echo
     echo "This programme requires bc but it could"
