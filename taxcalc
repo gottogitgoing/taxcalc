@@ -66,6 +66,7 @@ help_message() {
   cat <<- _EOF_
   $PROGNAME ver. $VERSION
   Calculates weekly income tax in Australia for the given values.
+  Rates are current for the year 2022 - 2023.
 
   Usage:      taxcalc [-h|--help] [-c|--csv] [-a|--anual grossincome]
                       [-m|--medicare] <arguments>
@@ -168,19 +169,24 @@ print_taxinfo(){
         			echo "Aggregated weekly Income."
 					echo "========================================================================="
 			fi
-			for i in $NUMBERS
-			do
-				AGG_RATE=$(echo "scale=2; $i * $RATE" | bc)
-				LENGTH_TEST=`printf "%'.2f\n" $(echo "scale=2; $i" | bc -l)`
-				LENGTH_AGG=`printf "%'.2f\n" $(echo "scale=2; $AGG_RATE" | bc -l)`
-				AGG_NETINC=$(echo "scale=2; $i - $AGG_RATE" | bc)
-				if [ ! $CSV_ISTRUE ]
-				then
-					print_aggregated
-				else
-					echo "Tax on:,$i,Tax on  >>,$AGG_RATE,You receive:,$AGG_NETINC" >>$CSV_FILE
-				fi
-			done
+            for i in $NUMBERS
+            do
+                if [ $MEDICARE ]
+                then
+                    AGG_RATE=$(echo "scale=2; $i * $RATE + ($i * 0.02)" | bc)
+                else
+                    AGG_RATE=$(echo "scale=2; $i * $RATE" | bc)
+                fi
+                LENGTH_TEST=`printf "%'.2f\n" $(echo "scale=2; $i" | bc -l)`
+                LENGTH_AGG=`printf "%'.2f\n" $(echo "scale=2; $AGG_RATE" | bc -l)`
+                AGG_NETINC=$(echo "scale=2; $i - $AGG_RATE" | bc)
+                if [ ! $CSV_ISTRUE ]
+                then
+                    print_aggregated
+                else
+                    echo "Tax on:,$i,Tax on  >>,$AGG_RATE,You receive:,$AGG_NETINC" >>$CSV_FILE
+                fi
+            done
 			graceful_exit
 		fi
 }
