@@ -127,39 +127,39 @@ print_taxinfo(){
 				YEARLY_NETINC=$(echo "scale=2; $YEARLY_NETINC - ($MEDICARE_LEVY * 52)" | bc -l)
 				TAX=$(echo "scale=2; $TAX + ($MEDICARE_LEVY * 52)" | bc -l)
 		fi
-		if [ ! $CSV_ISTRUE ]
-		then
-			echo
-			printf "%s\t\t%s%'.2f\n" "Weekly Gross Income:" "\$" "$TOTAL" 
-			printf "%s\t\t%s%'.2f\n" "Weekly Net Income:" "\$" "$TOTAL_NETINC" 
-			printf "%s\t\t%s%'.2f\n" "Weekly Income Tax:" "\$" "$WEEKLY_INCTAX" 
-			echo
-			printf "%s\t\t%s%'.2f\n" "Yearly Gross Income:" "\$" "$TAXABLE_INCOME"
-			printf "%s\t\t%s%'.2f\n" "Yearly Net Income:" "\$" "$YEARLY_NETINC"
-			printf "%s\t\t%s%'.2f\n" "Yearly Income Tax:" "\$" "$TAX"
-			echo
-			LENGTH_TAX=`printf "%'.2f\n" "$WEEKLY_INCTAX"`
-			if [ $MEDICARE ]
-				then
-					printf "%s%'.2f\n" "Calculations include a medicare levy of \$" "$MEDICARE_LEVY"
-					echo
-			fi
-		else
-			echo " , , " >>$CSV_FILE
+        if [ ! $CSV_ISTRUE ]
+        then
+            echo
+            printf "%s\t\t%s%'.2f\n" "Weekly Gross Income:" "\$" "$TOTAL" 
+            printf "%s\t\t%s%'.2f\n" "Weekly Net Income:" "\$" "$TOTAL_NETINC" 
+            printf "%s\t\t%s%'.2f\n" "Weekly Income Tax:" "\$" "$WEEKLY_INCTAX" 
+            echo
+            printf "%s\t\t%s%'.2f\n" "Yearly Gross Income:" "\$" "$TAXABLE_INCOME"
+            printf "%s\t\t%s%'.2f\n" "Yearly Net Income:" "\$" "$YEARLY_NETINC"
+            printf "%s\t\t%s%'.2f\n" "Yearly Income Tax:" "\$" "$TAX"
+            echo
+            LENGTH_TAX=`printf "%'.2f\n" "$WEEKLY_INCTAX"`
+            if [ $MEDICARE ]
+            then
+                printf "%s%'.2f\n" "Calculations include a medicare levy of \$" "$MEDICARE_LEVY"
+                echo
+            fi
+        else
+            echo " , , " >>$CSV_FILE
             echo "Weekly Gross Income,,$TOTAL" >>$CSV_FILE
             echo "Weekly Net Income,,$TOTAL_NETINC" >>$CSV_FILE
             echo "Weekly Income Tax,,$WEEKLY_INCTAX" >>$CSV_FILE
-			echo " , , " >>$CSV_FILE
-			echo "Yearly Gross Income,,$TAXABLE_INCOME" >>$CSV_FILE
-			echo "Yearly Net Income,,$YEARLY_NETINC" >>$CSV_FILE
-			echo "Yearly Income Tax,,$TAX" >>$CSV_FILE
-			echo " , , " >>$CSV_FILE
-			if [ $MEDICARE ]
-				then
-					printf "%s%'.2f%s\n" "Calculations include a medicare levy of, ," "$MEDICARE_LEVY" "," >>$CSV_FILE
-					echo " , , " >>$CSV_FILE
-			fi
-		fi
+            echo " , , " >>$CSV_FILE
+            echo "Yearly Gross Income,,$TAXABLE_INCOME" >>$CSV_FILE
+            echo "Yearly Net Income,,$YEARLY_NETINC" >>$CSV_FILE
+            echo "Yearly Income Tax,,$TAX" >>$CSV_FILE
+            echo " , , " >>$CSV_FILE
+            if [ $MEDICARE ]
+            then
+                printf "%s%'.2f%s\n" "Calculations include a medicare levy of, ," "$MEDICARE_LEVY" "," >>$CSV_FILE
+                echo " , , " >>$CSV_FILE
+            fi
+        fi
 		if [ ! $ANUAL_ISTRUE ] && [ $((`echo $NUMBERS | wc -w`)) -gt 1 ]
 			then
 			if [ $CSV_ISTRUE ]
