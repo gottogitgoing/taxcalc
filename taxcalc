@@ -146,9 +146,9 @@ print_taxinfo(){
 			fi
 		else
 			echo " , , " >>$CSV_FILE
-			echo "Weekly Gross Income,,$TOTAL" >>$CSV_FILE
+            echo "Weekly Gross Income,,$TOTAL" >>$CSV_FILE
             echo "Weekly Net Income,,$TOTAL_NETINC" >>$CSV_FILE
-			echo "Weekly Income Tax,,$WEEKLY_INCTAX" >>$CSV_FILE
+            echo "Weekly Income Tax,,$WEEKLY_INCTAX" >>$CSV_FILE
 			echo " , , " >>$CSV_FILE
 			echo "Yearly Gross Income,,$TAXABLE_INCOME" >>$CSV_FILE
 			echo "Yearly Net Income,,$YEARLY_NETINC" >>$CSV_FILE
